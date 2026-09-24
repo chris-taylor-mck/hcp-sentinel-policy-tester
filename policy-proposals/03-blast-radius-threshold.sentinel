@@ -1,0 +1,14 @@
+# 03. Blast Radius Exceeded
+
+import "tfplan/v2" as tfplan
+
+param max_destructive_changes default 3
+
+destructive_changes = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+	rc.change.actions contains "delete"
+}
+
+main = rule {
+	length(destructive_changes) <= max_destructive_changes
+}

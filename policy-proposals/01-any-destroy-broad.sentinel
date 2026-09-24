@@ -1,0 +1,12 @@
+# 01. Destroy or forced-replacement on ANY managed resource.
+
+import "tfplan/v2" as tfplan
+
+destructive_changes = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+	rc.change.actions contains "delete"
+}
+
+main = rule {
+	length(destructive_changes) is 0
+}

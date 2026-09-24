@@ -1,0 +1,26 @@
+# 02. Stateful resource destroy or forced-replacement
+
+import "tfplan/v2" as tfplan
+
+stateful_types = [
+	"azurerm_key_vault",
+	"azurerm_key_vault_secret",
+	"azurerm_key_vault_certificate",
+	"azurerm_postgresql_flexible_server",
+	"azurerm_storage_account",
+	"azurerm_eventhub",
+	"azurerm_eventhub_namespace",
+	"azurerm_eventhub_authorization_rule",
+	"azurerm_user_assigned_identity",
+	"azurerm_federated_identity_credential",
+]
+
+destructive_stateful_changes = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+	rc.type in stateful_types and
+	rc.change.actions contains "delete"
+}
+
+main = rule {
+	length(destructive_stateful_changes) is 0
+}

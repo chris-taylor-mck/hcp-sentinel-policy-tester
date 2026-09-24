@@ -1,0 +1,12 @@
+[project]
+name = "sentinel-mocks"
+version = "0.1.0"
+description = "Pull Sentinel mock bundles from HCP Terraform and evaluate policies against them offline"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "pydantic>=2.0",
+    "typer>=0.12",
+    "truststore>=0.9",
+    "rich>=13.0",
+]
