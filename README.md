@@ -51,6 +51,9 @@ uv run sentinel_mocks.py evaluate --policy policy-proposals/01-any-destroy-broad
 uv run sentinel_mocks.py evaluate \
     --policy policy-proposals/01-any-destroy-broad.sentinel --policy policy-proposals/03-blast-radius-threshold.sentinel \
     --detailed
+
+# Evaluate with more (or fewer) concurrent `sentinel apply` invocations; default is 10
+uv run sentinel_mocks.py evaluate -j 25
 ```
 
 Run `uv run sentinel_mocks.py pull --help` or `evaluate --help` for the full option list.
@@ -59,4 +62,4 @@ Run `uv run sentinel_mocks.py pull --help` or `evaluate --help` for the full opt
 
 This injects `truststore` so certificate verification defers to the OS-native trust store instead of the bundled `certifi` CA list. This matters on networks with a TLS-inspecting forward proxy.
 
-This was primarily vibe-coded and has not had a pass for performance. It takes significant time to package and download runs from large time ranges the first time it is run (downloaded mocks are cached and not re-downloaded). If a large number of runs are gathered, evaluation can take a long time, and this is multiplied by the number of policies to evaluate. Flags are provided to help with this, but if this tool proves useful we should address the performance issues.
+This was primarily vibe-coded and has not had a pass for performance. It takes significant time to package and download runs from large time ranges the first time it is run (downloaded mocks are cached and not re-downloaded). `evaluate` runs `sentinel apply` invocations concurrently (`-j`/`--parallelism`, default 10) to keep large-corpus evaluation reasonable, but `pull` is still unoptimized.

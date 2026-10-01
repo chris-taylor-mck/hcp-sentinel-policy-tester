@@ -68,6 +68,7 @@ import tarfile
 import threading
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
@@ -1036,6 +1037,9 @@ def evaluate(
     detailed: Annotated[bool, typer.Option("-d", "--detailed", help="Also list every failing/undefined/errored run's path and reason")] = False,
     max_output_lines: Annotated[int, typer.Option(help="Cap lines of sentinel output shown per non-passing run in --detailed (<=0 = unlimited)")] = 0,
     apply_timeout: Annotated[str, typer.Option(help="Per-run `sentinel apply -timeout` value, e.g. '10s'")] = "30s",
+    parallelism: Annotated[
+        int, typer.Option("-j", "--parallelism", min=1, help="Number of `sentinel apply` invocations to run concurrently")
+    ] = 10,
 ) -> None:
     """Evaluate one or more Sentinel policies against every downloaded mock bundle under --corpus-dir."""
     policies = policy if policy else discover_policy_files(policy_dir)
@@ -1053,10 +1057,26 @@ def evaluate(
     if not policy:
         typer.echo(f"No --policy given; discovered {len(policies)} policy file(s) under {policy_dir}: {[str(p) for p in policies]}", err=True)
 
-    all_results: dict[Path, list[PolicyRunResult]] = {}
-    for policy_path in policies:
-        typer.echo(f"Evaluating {policy_path} against {len(runs)} run(s)...", err=True)
-        all_results[policy_path] = [evaluate_policy_against_run(sentinel_bin, policy_path, run, apply_timeout) for run in runs]
+    typer.echo(
+        f"Evaluating {len(policies)} polic{'y' if len(policies) == 1 else 'ies'} against {len(runs)} run(s) "
+        f"({len(policies) * len(runs)} total invocation(s), parallelism={parallelism})...",
+        err=True,
+    )
+    all_results: dict[Path, list[PolicyRunResult]] = {policy_path: [] for policy_path in policies}
+    with ThreadPoolExecutor(max_workers=parallelism) as executor:
+        futures = {
+            executor.submit(evaluate_policy_against_run, sentinel_bin, policy_path, run, apply_timeout): policy_path
+            for policy_path in policies
+            for run in runs
+        }
+        for future in as_completed(futures):
+            all_results[futures[future]].append(future.result())
+
+    # `as_completed` yields in completion order, not submission order -- restore corpus order
+    # per policy so --detailed output stays stable and easy to diff across runs.
+    run_index = {id(run): i for i, run in enumerate(runs)}
+    for results in all_results.values():
+        results.sort(key=lambda r: run_index[id(r.run)])
 
     print_eval_summary(all_results)
     if detailed:
