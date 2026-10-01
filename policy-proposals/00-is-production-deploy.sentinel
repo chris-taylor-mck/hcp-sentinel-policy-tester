@@ -1,0 +1,10 @@
+# 00. Prod-only detection
+
+import "tfplan/v2" as tfplan
+import "tfrun"
+
+is_prod_workspace = tfrun.workspace.name matches "-prod$"
+
+main = rule {
+	is_prod_workspace
+}

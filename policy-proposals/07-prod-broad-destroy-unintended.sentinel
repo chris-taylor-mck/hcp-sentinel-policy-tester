@@ -1,0 +1,19 @@
+# 05. Prod-only scoping wrapper, any destructive changes
+
+import "tfplan/v2" as tfplan
+import "tfrun"
+
+is_prod_workspace = tfrun.workspace.name matches "-prod$"
+
+destructive_changes = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+	rc.change.actions contains "delete"
+}
+
+unintended_destructive_changes = filter destructive_changes as _, rc {
+	tfrun.replace_addrs is null or (not (rc.address in tfrun.replace_addrs))
+}
+
+main = rule {
+	(not is_prod_workspace) or (length(unintended_destructive_changes) is 0)
+}
